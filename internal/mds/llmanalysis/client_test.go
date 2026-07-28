@@ -1,6 +1,7 @@
 package llmanalysis
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -89,5 +90,75 @@ func TestChat_UnreachableServer(t *testing.T) {
 	_, err := client.Chat(context.Background(), "sys", "user")
 	if err == nil {
 		t.Fatal("expected an error when the server is unreachable, got nil")
+	}
+}
+
+func TestChatDetailed_PreservesCompleteAPIResponse(t *testing.T) {
+	const response = `{"model":"gemma4:e2b","created_at":"2026-07-28T01:02:03Z","message":{"role":"assistant","content":"analysis"},"done":true,"done_reason":"stop","total_duration":420000000000,"load_duration":1000000000,"prompt_eval_count":1200,"prompt_eval_duration":300000000000,"eval_count":300,"eval_duration":119000000000}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(response))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "gemma4:e2b")
+	client.HTTP = server.Client()
+
+	result, err := client.ChatDetailed(context.Background(), "sys", "user")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Content != "analysis" {
+		t.Errorf("got content %q, want %q", result.Content, "analysis")
+	}
+	if result.StatusCode != http.StatusOK {
+		t.Errorf("got status %d, want %d", result.StatusCode, http.StatusOK)
+	}
+	if string(result.RawResponse) != response {
+		t.Errorf("raw response was changed:\ngot  %s\nwant %s", result.RawResponse, response)
+	}
+
+	var verbose bytes.Buffer
+	if err := result.WriteVerbose(&verbose); err != nil {
+		t.Fatalf("failed to write verbose response: %v", err)
+	}
+	for _, want := range []string{
+		"[verbose] Ollama API response (HTTP 200):",
+		`"total_duration": 420000000000`,
+		`"load_duration": 1000000000`,
+		`"prompt_eval_count": 1200`,
+		`"prompt_eval_duration": 300000000000`,
+		`"eval_count": 300`,
+		`"eval_duration": 119000000000`,
+	} {
+		if !strings.Contains(verbose.String(), want) {
+			t.Errorf("verbose output does not contain %q:\n%s", want, verbose.String())
+		}
+	}
+}
+
+func TestChatDetailed_PreservesErrorResponse(t *testing.T) {
+	const response = `{"error":"model runner failed","detail":{"duration":123}}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(response))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "gemma4:e2b")
+	client.HTTP = server.Client()
+
+	result, err := client.ChatDetailed(context.Background(), "sys", "user")
+	if err == nil {
+		t.Fatal("expected an error for non-200 status code, got nil")
+	}
+	if result.StatusCode != http.StatusInternalServerError {
+		t.Errorf("got status %d, want %d", result.StatusCode, http.StatusInternalServerError)
+	}
+	if string(result.RawResponse) != response {
+		t.Errorf("got raw response %q, want %q", result.RawResponse, response)
 	}
 }

@@ -21,6 +21,7 @@ func (c *Client) PostXML(ctx context.Context, payload any) ([]byte, error) {
 		return nil, err
 	}
 
+	// UCS Manager's XML API requires this media type even though the body is XML.
 	req.Header.Set("content-type", "application/x-www-form-urlencoded")
 
 	if c.Verbose {

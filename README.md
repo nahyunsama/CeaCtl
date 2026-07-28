@@ -101,7 +101,7 @@ The `mds` and `ucsm` command groups share these flags:
 | --- | --- |
 | `--config <path>` | Configuration file path (default: `.config.yaml`). |
 | `--device`, `-d <name>` | Device profile name from the configuration. |
-| `--verbose`, `-v` | Print request and session details to stderr. |
+| `--verbose`, `-v` | Print request/session details and the complete Ollama API response to stderr. |
 
 Examples:
 
@@ -193,6 +193,15 @@ The Ollama request is non-streaming, uses a 128K requested context window and
 temperature `0`, and can wait for up to 10 minutes. Large logs or a model's
 first load may therefore take some time; the CLI prints an elapsed-time counter
 while it waits.
+
+Use `--verbose` to print the complete `/api/chat` JSON response to stderr. This
+includes Ollama's performance fields such as `total_duration`,
+`load_duration`, `prompt_eval_count`, `prompt_eval_duration`, `eval_count`, and
+`eval_duration`:
+
+```bash
+./ceactl mds logs analyze --file ./samples/mds.log --verbose
+```
 
 LLM output is preliminary troubleshooting material and may be incomplete or
 incorrect. Confirm cited events against the displayed source log details and

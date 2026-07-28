@@ -11,9 +11,7 @@ const (
 	maxEvidenceVariantsPerEvent = 10
 )
 
-// WriteEvidenceDetails writes exact parser-preserved messages for the Event
-// IDs cited individually by the LLM. Event IDs are one-based indexes into the
-// ordered Groups slice.
+// WriteEvidenceDetails treats event IDs as one-based indexes into Groups.
 func (r *Result) WriteEvidenceDetails(w io.Writer, eventIDs []int) error {
 	if _, err := fmt.Fprintln(
 		w,
