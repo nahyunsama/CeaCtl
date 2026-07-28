@@ -44,6 +44,7 @@ type chatRequest struct {
 	Model    string        `json:"model"`
 	Messages []chatMessage `json:"messages"`
 	Stream   bool          `json:"stream"`
+	Think    bool          `json:"think"`
 	Options  chatOptions   `json:"options"`
 }
 
@@ -100,6 +101,7 @@ func (c *Client) ChatDetailed(ctx context.Context, systemPrompt, userPrompt stri
 			{Role: "user", Content: userPrompt},
 		},
 		Stream:  false,
+		Think:   false,
 		Options: chatOptions{NumCtx: c.NumCtx, Temperature: c.Temperature},
 	}
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,12 +14,20 @@ import (
 func TestChat_SendsExpectedPayload(t *testing.T) {
 	var gotPath, gotContentType string
 	var got chatRequest
+	var gotJSON map[string]json.RawMessage
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
 		gotContentType = r.Header.Get("Content-Type")
-		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("failed to read request body: %v", err)
+		}
+		if err := json.Unmarshal(body, &got); err != nil {
 			t.Fatalf("failed to decode request body: %v", err)
+		}
+		if err := json.Unmarshal(body, &gotJSON); err != nil {
+			t.Fatalf("failed to inspect request body: %v", err)
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"message":{"role":"assistant","content":"hello back"}}`))
@@ -47,6 +56,14 @@ func TestChat_SendsExpectedPayload(t *testing.T) {
 	}
 	if got.Stream {
 		t.Errorf("got stream=true, want false")
+	}
+	if got.Think {
+		t.Errorf("got think=true, want false")
+	}
+	if rawThink, ok := gotJSON["think"]; !ok {
+		t.Error("request body does not contain think")
+	} else if string(rawThink) != "false" {
+		t.Errorf("got raw think value %s, want false", rawThink)
 	}
 	if got.Options.NumCtx != defaultNumCtx {
 		t.Errorf("got num_ctx %d, want %d", got.Options.NumCtx, defaultNumCtx)
