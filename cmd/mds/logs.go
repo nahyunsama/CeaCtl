@@ -102,15 +102,26 @@ func LogsAnalyzeCommand(opts *commandOptions) *cobra.Command {
 
 			fmt.Fprintf(os.Stderr, "Requesting LLM analysis from %s (model: %s)...\n", cfgFile.LLMAnalysis.Ollama.Endpoint, cfgFile.LLMAnalysis.Ollama.Model)
 			done := make(chan struct{})
-			go reportElapsed(os.Stderr, done)
+			stopped := make(chan struct{})
+			go func() {
+				reportElapsed(os.Stderr, done)
+				close(stopped)
+			}()
 
 			client := llmanalysis.NewClient(cfgFile.LLMAnalysis.Ollama.Endpoint, cfgFile.LLMAnalysis.Ollama.Model)
-			reply, err := client.Chat(cmd.Context(), llmanalysis.SystemPrompt, userPrompt)
+			chatResult, err := client.ChatDetailed(cmd.Context(), llmanalysis.SystemPrompt, userPrompt)
 			close(done)
+			<-stopped
 			fmt.Fprintln(os.Stderr)
+			if opts.verbose {
+				if verboseErr := chatResult.WriteVerbose(os.Stderr); verboseErr != nil {
+					return fmt.Errorf("failed to write verbose Ollama response: %v", verboseErr)
+				}
+			}
 			if err != nil {
 				return fmt.Errorf("failed to get LLM analysis: %v", err)
 			}
+			reply := chatResult.Content
 
 			if _, err := fmt.Fprintf(
 				os.Stdout,
@@ -146,9 +157,6 @@ func LogsAnalyzeCommand(opts *commandOptions) *cobra.Command {
 	return c
 }
 
-// reportElapsed writes a "\r"-overwritten elapsed-time counter to w once per
-// second until done is closed, so a user waiting on a slow LLM call can see
-// the request hasn't stalled.
 func reportElapsed(w io.Writer, done <-chan struct{}) {
 	start := time.Now()
 	ticker := time.NewTicker(time.Second)

@@ -265,8 +265,6 @@ func TestParseVsan(t *testing.T) {
 }
 
 func TestAnalyze_GroupsOrderedByFirstOccurrence(t *testing.T) {
-	// Group with iface fc1/2 is scanned first, but its timestamp is later than
-	// the fc1/1 group's. The final result should still sort by First ascending.
 	log := strings.Join([]string{
 		"2024 Jan 15 10:00:00 switch1 %PORT-5-IF_DOWN: Interface fc1/2, VSAN 200 is down",
 		"2024 Jan 15 09:00:00 switch1 %PORT-5-IF_DOWN: Interface fc1/1, VSAN 100 is down",

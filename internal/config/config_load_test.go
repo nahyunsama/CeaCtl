@@ -57,7 +57,6 @@ func TestOnlyDeviceName_MultipleMatches(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error when multiple devices match the type, got nil")
 	}
-	// names should be sorted in the error message so the user gets a stable, readable list
 	if !strings.Contains(err.Error(), "switch-a, switch-b") {
 		t.Errorf("error %q does not contain sorted device names %q", err.Error(), "switch-a, switch-b")
 	}
@@ -81,7 +80,6 @@ func TestValidateDevice_MissingFields(t *testing.T) {
 	device := Device{
 		Type: "mds",
 		Host: "10.0.0.1",
-		// Port, Username, Password left empty
 	}
 
 	err := validateDevice("switch1", device)
@@ -99,7 +97,6 @@ func TestValidateDevice_MissingSingleField(t *testing.T) {
 		Host:     "10.0.0.1",
 		Port:     "443",
 		Username: "admin",
-		// Password left empty
 	}
 
 	err := validateDevice("switch1", device)
