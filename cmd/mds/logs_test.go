@@ -1,8 +1,12 @@
 package mds
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/nahyunsama/ceactl/internal/mds/logcompressor"
 )
 
 func TestParseDayStart(t *testing.T) {
@@ -61,6 +65,128 @@ func TestParseDayEnd(t *testing.T) {
 		_, err := parseDayEnd("2024-01-15")
 		if err == nil {
 			t.Fatal("expected an error for malformed date, got nil")
+		}
+	})
+}
+
+func TestShouldWriteFullLogReport(t *testing.T) {
+	tests := []struct {
+		name    string
+		verbose bool
+		backend string
+		want    bool
+	}{
+		{
+			name:    "default ollama output hides full report",
+			backend: "ollama",
+		},
+		{
+			name:    "verbose ollama output includes full report",
+			verbose: true,
+			backend: "ollama",
+			want:    true,
+		},
+		{
+			name:    "non ollama backend still has useful output",
+			backend: "console-only",
+			want:    true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := shouldWriteFullLogReport(
+				test.verbose,
+				test.backend,
+			)
+			if got != test.want {
+				t.Fatalf("got %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestWriteReferencedEventOutput_SelectsDetailByMode(t *testing.T) {
+	observed := time.Date(2026, time.June, 1, 12, 0, 0, 0, time.UTC)
+	result := &logcompressor.Result{
+		Events: []logcompressor.Event{
+			{
+				Targets: []string{"fc1/1"}, Type: "state",
+				Role: "effect", Transition: "down",
+				Reason: "link_failure", Final: "down",
+				Count: 1, First: observed, Last: observed,
+				SourceGroupIDs: []int{1},
+			},
+			{
+				Targets: []string{"IPStorage1/6"}, Type: "measurement",
+				Role: "cause_candidate", Transition: "asserted",
+				Reason: "low_rx_power_alarm", Final: "asserted",
+				Count: 1, First: observed, Last: observed,
+				SourceGroupIDs: []int{2},
+			},
+		},
+		Groups: []logcompressor.Group{
+			{
+				Facility: "PORT", Mnemonic: "IF_DOWN_LINK_FAILURE",
+				Iface: "fc1/1", Vsan: "-", Count: 1,
+			},
+			{
+				Facility: "ETHPORT", Mnemonic: "IF_SFP_ALARM",
+				Iface: "IPStorage1/6", Vsan: "-", Count: 1,
+				Variants: []logcompressor.MessageVariant{{
+					Message: "Interface IPStorage1/6, Low Rx Power Alarm",
+					Count:   1,
+					First:   observed,
+					Last:    observed,
+				}},
+			},
+		},
+	}
+
+	t.Run("default writes only cited compact summary", func(t *testing.T) {
+		var output bytes.Buffer
+		if err := writeReferencedEventOutput(
+			&output,
+			result,
+			[]int{2},
+			false,
+		); err != nil {
+			t.Fatalf("writeReferencedEventOutput returned an error: %v", err)
+		}
+
+		got := output.String()
+		if !strings.Contains(got, "=== Cited Event Summary ===") ||
+			!strings.Contains(got, "E2|") ||
+			!strings.Contains(got, "low_rx_power_alarm") {
+			t.Errorf("default output is missing cited summary:\n%s", got)
+		}
+		if strings.Contains(got, "Source evidence") ||
+			strings.Contains(got, "E1|") {
+			t.Errorf("default output contains verbose detail:\n%s", got)
+		}
+	})
+
+	t.Run("verbose writes exact source evidence", func(t *testing.T) {
+		var output bytes.Buffer
+		if err := writeReferencedEventOutput(
+			&output,
+			result,
+			[]int{2},
+			true,
+		); err != nil {
+			t.Fatalf("writeReferencedEventOutput returned an error: %v", err)
+		}
+
+		got := output.String()
+		if !strings.Contains(got, "=== Source evidence") ||
+			!strings.Contains(
+				got,
+				"Interface IPStorage1/6, Low Rx Power Alarm",
+			) {
+			t.Errorf("verbose output is missing source evidence:\n%s", got)
+		}
+		if strings.Contains(got, "=== Cited Event Summary ===") {
+			t.Errorf("verbose output contains default summary:\n%s", got)
 		}
 	})
 }

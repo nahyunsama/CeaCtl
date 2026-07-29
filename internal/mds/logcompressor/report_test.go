@@ -170,6 +170,44 @@ func TestCompactTargetSequences_AggregatesSharedPatternWithinIncident(t *testing
 	}
 }
 
+func TestWriteCitedEventSummary_WritesOnlyValidSelectedEvents(t *testing.T) {
+	observed := time.Date(2026, time.June, 1, 12, 0, 0, 0, time.UTC)
+	result := &Result{Events: []Event{
+		{
+			Targets: []string{"fc1/1"}, Type: "state",
+			Role: "effect", Transition: "down",
+			Reason: "link_failure", Final: "down",
+			Count: 1, First: observed, Last: observed,
+		},
+		{
+			Targets: []string{"fc1/2"}, Type: "state",
+			Role: "recovery", Transition: "up",
+			Reason: "none", Final: "up",
+			Count: 1, First: observed, Last: observed,
+		},
+	}}
+
+	var output bytes.Buffer
+	if err := result.WriteCitedEventSummary(
+		&output,
+		[]int{2, 2, 0, 3},
+	); err != nil {
+		t.Fatalf("WriteCitedEventSummary returned an error: %v", err)
+	}
+	got := output.String()
+	if !strings.Contains(got, "E2|") || strings.Contains(got, "E1|") {
+		t.Errorf("unexpected cited event selection:\n%s", got)
+	}
+
+	output.Reset()
+	if err := result.WriteCitedEventSummary(&output, nil); err != nil {
+		t.Fatalf("empty summary returned an error: %v", err)
+	}
+	if output.Len() != 0 {
+		t.Errorf("empty ID set produced output:\n%s", output.String())
+	}
+}
+
 func findLineWithPrefix(value, prefix string) string {
 	for _, line := range strings.Split(value, "\n") {
 		if strings.HasPrefix(line, prefix) {

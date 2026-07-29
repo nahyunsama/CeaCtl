@@ -118,28 +118,63 @@ func (r *Result) WriteCompact(w io.Writer) error {
 	}
 
 	for index, event := range r.StructuredEvents() {
-		detail := event.Detail
-		if detail == "" {
-			detail = "-"
-		}
-		if _, err := fmt.Fprintf(
-			w,
-			"E%d|%s|%d|%s|%s|%s|%s|%s|%s|%s\n",
-			index+1,
-			compactSpan(event.First, event.Last),
-			event.Count,
-			formatTargets(event.Targets),
-			compactValue(event.Type),
-			compactValue(event.Role),
-			compactValue(event.Transition),
-			compactValue(event.Reason),
-			compactValue(event.Final),
-			compactValue(detail),
-		); err != nil {
+		if err := writeCompactEvent(w, index+1, event); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// WriteCitedEventSummary prints only compact events individually cited by the
+// LLM. An empty or invalid ID set intentionally produces no output.
+func (r *Result) WriteCitedEventSummary(
+	w io.Writer,
+	eventIDs []int,
+) error {
+	validIDs := r.validUniqueEventIDs(eventIDs)
+	if len(validIDs) == 0 {
+		return nil
+	}
+
+	if _, err := fmt.Fprintln(w, "\n=== Cited Event Summary ==="); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(
+		w,
+		"event_schema|id|time|count|target|type|role|transition|reason|final|detail",
+	); err != nil {
+		return err
+	}
+
+	events := r.StructuredEvents()
+	for _, id := range validIDs {
+		if err := writeCompactEvent(w, id, events[id-1]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeCompactEvent(w io.Writer, id int, event Event) error {
+	detail := event.Detail
+	if detail == "" {
+		detail = "-"
+	}
+	_, err := fmt.Fprintf(
+		w,
+		"E%d|%s|%d|%s|%s|%s|%s|%s|%s|%s\n",
+		id,
+		compactSpan(event.First, event.Last),
+		event.Count,
+		formatTargets(event.Targets),
+		compactValue(event.Type),
+		compactValue(event.Role),
+		compactValue(event.Transition),
+		compactValue(event.Reason),
+		compactValue(event.Final),
+		compactValue(detail),
+	)
+	return err
 }
 
 func compactTargetSequences(

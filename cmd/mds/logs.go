@@ -82,11 +82,14 @@ func LogsAnalyzeCommand(opts *commandOptions) *cobra.Command {
 				return fmt.Errorf("failed to analyze log: %v", err)
 			}
 
-			if err := result.WriteReport(os.Stdout, 10); err != nil {
-				return err
+			backend := cfgFile.LLMAnalysis.Backend
+			if shouldWriteFullLogReport(opts.verbose, backend) {
+				if err := result.WriteReport(os.Stdout, 10); err != nil {
+					return err
+				}
 			}
 
-			if cfgFile.LLMAnalysis.Backend != "ollama" {
+			if backend != "ollama" {
 				return nil
 			}
 
@@ -137,7 +140,12 @@ func LogsAnalyzeCommand(opts *commandOptions) *cobra.Command {
 				result.EventCount(),
 			)
 
-			if err := result.WriteEvidenceDetails(os.Stdout, eventIDs); err != nil {
+			if err := writeReferencedEventOutput(
+				os.Stdout,
+				result,
+				eventIDs,
+				opts.verbose,
+			); err != nil {
 				return err
 			}
 
@@ -155,6 +163,22 @@ func LogsAnalyzeCommand(opts *commandOptions) *cobra.Command {
 	c.Flags().StringVar(&file, "file", "", "path to a local log file (skips device fetch)")
 
 	return c
+}
+
+func shouldWriteFullLogReport(verbose bool, backend string) bool {
+	return verbose || backend != "ollama"
+}
+
+func writeReferencedEventOutput(
+	w io.Writer,
+	result *logcompressor.Result,
+	eventIDs []int,
+	verbose bool,
+) error {
+	if verbose {
+		return result.WriteEvidenceDetails(w, eventIDs)
+	}
+	return result.WriteCitedEventSummary(w, eventIDs)
 }
 
 func reportElapsed(w io.Writer, done <-chan struct{}) {
