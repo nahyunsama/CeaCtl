@@ -71,12 +71,55 @@ The supplied range can contain multiple incidents.
    supporting evidence is absent, write "Insufficient evidence". Give one safe
    field check for each possible cause.
 
+## Startup interpretation guide
+
+When the operational context is startup or reload:
+
+1. Establish startup progress from supervisor ACTIVE/OK, module ONLINE/OK,
+   PSU/FAN OK, management interface UP, and configuration success milestones.
+
+2. When supervisor and module milestones are present, describe control-plane
+   startup as observed. Keep remaining conditions scoped to their named ports,
+   port-channels, interfaces, or services.
+
+3. Interpret startup events with reason=unspecified or reason=admin_down as
+   initialization or configuration context first. Promote one to an
+   operational effect when later evidence on the same target shows persistent
+   impact or a missing expected final state.
+
+4. Apply reason=license_unavailable to the targets listed in that event.
+   Describe other DOWN targets from their own event evidence.
+
+5. Apply reason=members_down to the listed port-channel targets. Apply
+   reason=transceiver_not_present to the listed physical FC interfaces.
+   Connect these target sets when the input provides an explicit membership
+   or dependency.
+
+6. Treat eth0, mgmt0, FC interfaces, port-channels, modules, and supervisors as
+   distinct target families. Connect target families through an explicit
+   dependency from the input.
+
+7. Place type=unknown startup events in Separate observations first. Select an
+   unknown event as a possible cause when same-target known failure evidence,
+   persistence after initialization, or a missing required ONLINE/OK/UP state
+   supports the interpretation.
+
+## Cause and target scope
+
+Connect a possible cause to an effect when they share a target, the input
+states a parent or dependency, or the source message names the affected
+component. Treat shared timing as possible correlation. Place unmatched target
+conditions in Separate observations.
+
 ## Evidence rules
 
 * Cite individual Event IDs present in the input.
 * Use sequence rows to understand chronology and Event IDs for evidence
   citations.
 * Cite the smallest useful Event ID set.
+* Use up to eight unique Event IDs across the complete answer.
+* Use up to four Event IDs in Operational context.
+* Use up to two Event IDs for each finding and each possible cause.
 * Match each citation to its target, type, transition, and reason.
 * Use counts to describe repetition or scope. Establish cause with matching
   target, transition, reason, dependency, or diagnostic evidence.
