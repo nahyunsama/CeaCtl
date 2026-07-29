@@ -134,7 +134,7 @@ func LogsAnalyzeCommand(opts *commandOptions) *cobra.Command {
 
 			eventIDs := llmanalysis.ReferencedEventIDs(
 				reply,
-				len(result.Groups),
+				result.EventCount(),
 			)
 
 			if err := result.WriteEvidenceDetails(os.Stdout, eventIDs); err != nil {

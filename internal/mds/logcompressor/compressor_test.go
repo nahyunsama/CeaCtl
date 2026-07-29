@@ -172,6 +172,14 @@ func TestParseMnemonic(t *testing.T) {
 			ok:           true,
 		},
 		{
+			name:         "space before mnemonic colon",
+			line:         "2024 Jan 15 10:23:45 switch1 %SYSLOG-2-SYSTEM_MSG : logflash is online",
+			wantFacility: "SYSLOG",
+			wantSeverity: "2",
+			wantMnemonic: "SYSTEM_MSG",
+			ok:           true,
+		},
+		{
 			name: "no mnemonic present",
 			line: "2024 Jan 15 10:23:45 switch1 plain log message",
 			ok:   false,

@@ -13,7 +13,7 @@ import (
 
 var (
 	reTimestamp = regexp.MustCompile(`^(\d{4}\s+\w+\s+\d+\s+\d{2}:\d{2}:\d{2})`)
-	reMnemonic  = regexp.MustCompile(`%([A-Z0-9_-]+)-(\d)-([A-Z0-9_]+):`)
+	reMnemonic  = regexp.MustCompile(`%([A-Z0-9_-]+)-(\d)-([A-Z0-9_]+)\s*:`)
 	reInterface = regexp.MustCompile(`(?i)\bInterface\s+([^\s,]+)`)
 	reVsan      = regexp.MustCompile(`(?i)VSAN\s*(\d+)`)
 )
@@ -52,8 +52,11 @@ type groupAccumulator struct {
 }
 
 type Result struct {
-	Groups   []Group
-	Unparsed []string
+	Groups    []Group
+	Events    []Event
+	Sequences []TargetSequence
+	Context   string
+	Unparsed  []string
 }
 
 func parseTS(line string) (time.Time, bool) {
@@ -106,6 +109,7 @@ func parseMessageDetail(line string) string {
 func Analyze(r io.Reader, from, to time.Time) (*Result, error) {
 	groups := make(map[groupKey]*groupAccumulator)
 	var order []groupKey
+	var occurrences []rawOccurrence
 	var unparsed []string
 
 	scanner := bufio.NewScanner(r)
@@ -181,6 +185,13 @@ func Analyze(r io.Reader, from, to time.Time) (*Result, error) {
 			continue
 		}
 
+		occurrences = append(occurrences, rawOccurrence{
+			GroupKey:  key,
+			Timestamp: ts,
+			Order:     len(occurrences),
+			Message:   detail,
+		})
+
 		variantPosition, variantExists := accumulator.variantIndex[detail]
 		if !variantExists {
 			variantPosition = len(group.Variants)
@@ -217,6 +228,7 @@ func Analyze(r io.Reader, from, to time.Time) (*Result, error) {
 	result := &Result{
 		Unparsed: unparsed,
 	}
+	groupIDs := make(map[groupKey]int, len(order))
 
 	for _, key := range order {
 		group := groups[key].group
@@ -228,11 +240,19 @@ func Analyze(r io.Reader, from, to time.Time) (*Result, error) {
 		})
 
 		result.Groups = append(result.Groups, group)
+		groupIDs[key] = len(result.Groups)
 	}
+
+	result.Context = detectContext(occurrences)
+	result.Events, result.Sequences = buildStructuredEvents(
+		occurrences,
+		groupIDs,
+		result.Context,
+	)
 	return result, nil
 }
 
-func (r *Result) WriteReport(w io.Writer, maxUnparsed int) error {
+func (r *Result) writeLegacyReport(w io.Writer, maxUnparsed int) error {
 	var err error
 	write := func(format string, a ...any) {
 		if err != nil {
@@ -261,7 +281,7 @@ func (r *Result) WriteReport(w io.Writer, maxUnparsed int) error {
 	return err
 }
 
-func (r *Result) WriteGroupTable(w io.Writer) error {
+func (r *Result) writeLegacyGroupTable(w io.Writer) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	var err error
 

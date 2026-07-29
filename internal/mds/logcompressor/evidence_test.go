@@ -51,9 +51,11 @@ func TestWriteEvidenceDetails_WritesExactVariantsForValidIDs(t *testing.T) {
 
 	output := buf.String()
 	expected := []string{
-		"=== LLM이 인용한 이벤트 원문 (프로그램 자동 추출) ===",
-		"※ 아래 내용은 LLM의 분석이 아니라, 인용된 Event ID의 실제 로그 메시지입니다.",
-		"[E2] ETHPORT-IF_SFP_WARNING iface=IPStorage1/6 vsan=- observed_count=2",
+		"=== Source evidence for LLM-cited events ===",
+		"[E2] target=IPStorage1/6 type=measurement",
+		"transition=asserted>cleared",
+		"reason=low_rx_power_warning observed_count=2",
+		"source=ETHPORT-IF_SFP_WARNING interface=IPStorage1/6 vsan=-",
 		"observed_count=1 time=2026-06-01 13:57:25",
 		"Interface IPStorage1/6, Low Rx Power Warning",
 		"observed_count=1 time=2026-06-01 14:07:26",
