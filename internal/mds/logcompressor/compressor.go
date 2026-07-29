@@ -2,12 +2,10 @@ package logcompressor
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"regexp"
 	"sort"
 	"strings"
-	"text/tabwriter"
 	"time"
 )
 
@@ -250,74 +248,4 @@ func Analyze(r io.Reader, from, to time.Time) (*Result, error) {
 		result.Context,
 	)
 	return result, nil
-}
-
-func (r *Result) writeLegacyReport(w io.Writer, maxUnparsed int) error {
-	var err error
-	write := func(format string, a ...any) {
-		if err != nil {
-			return
-		}
-		_, err = fmt.Fprintf(w, format, a...)
-	}
-
-	write("=== 압축 결과: 그룹 %d개 (미분류 %d줄) ===\n\n", len(r.Groups), len(r.Unparsed))
-
-	if err == nil {
-		err = r.WriteGroupTable(w)
-	}
-
-	write("\n=== 미분류 줄 (%d개) ===\n", len(r.Unparsed))
-	limit := maxUnparsed
-	if len(r.Unparsed) < limit {
-		limit = len(r.Unparsed)
-	}
-	for _, l := range r.Unparsed[:limit] {
-		write("  %s\n", strings.TrimSpace(l))
-	}
-	if len(r.Unparsed) > limit {
-		write("  ... 외 %d줄\n", len(r.Unparsed)-limit)
-	}
-	return err
-}
-
-func (r *Result) writeLegacyGroupTable(w io.Writer) error {
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	var err error
-
-	for index, group := range r.Groups {
-		if err != nil {
-			break
-		}
-
-		var span string
-		if !group.First.Equal(group.Last) {
-			span = fmt.Sprintf(
-				"%s ~ %s",
-				group.First.Format("15:04:05"),
-				group.Last.Format("15:04:05"),
-			)
-		} else {
-			span = group.First.Format("15:04:05")
-		}
-
-		_, err = fmt.Fprintf(
-			tw,
-			"[E%d sev%s] %s-%s\tiface=%s vsan=%s\t%d회\t(%s)\n",
-			index+1,
-			group.Severity,
-			group.Facility,
-			group.Mnemonic,
-			group.Iface,
-			group.Vsan,
-			group.Count,
-			span,
-		)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	return tw.Flush()
 }
