@@ -101,7 +101,7 @@ The `mds` and `ucsm` command groups share these flags:
 | --- | --- |
 | `--config <path>` | Configuration file path (default: `.config.yaml`). |
 | `--device`, `-d <name>` | Device profile name from the configuration. |
-| `--verbose`, `-v` | Print request/session details and the complete Ollama API response to stderr. |
+| `--verbose`, `-v` | Print request/session details; log analysis also prints the complete compressed input, cited source evidence, and Ollama API response. |
 
 Examples:
 
@@ -114,10 +114,11 @@ Examples:
 
 ## MDS Log Analysis with Ollama
 
-`mds logs analyze` first parses the log locally and prints a grouped event
-report. With the Ollama backend enabled, it then sends the grouped events to
-Ollama, prints the model's analysis, and displays the original message details
-for individually cited event IDs such as `E1` and `E2`.
+`mds logs analyze` parses and semantically compresses the log locally before
+sending pipe-delimited events to Ollama. The default output contains the
+model's analysis followed by one-line summaries for individually cited Event
+IDs such as `E1` and `E2`. Use `--verbose` to also display the complete
+compressed input and the exact source messages behind cited events.
 
 ### 1. Install and start Ollama
 
@@ -194,7 +195,8 @@ temperature `0`, and can wait for up to 10 minutes. Large logs or a model's
 first load may therefore take some time; the CLI prints an elapsed-time counter
 while it waits.
 
-Use `--verbose` to print the complete `/api/chat` JSON response to stderr. This
+Use `--verbose` to print the complete compressed log report and cited source
+evidence, plus the complete `/api/chat` JSON response to stderr. The response
 includes Ollama's performance fields such as `total_duration`,
 `load_duration`, `prompt_eval_count`, `prompt_eval_duration`, `eval_count`, and
 `eval_duration`:
@@ -204,8 +206,9 @@ includes Ollama's performance fields such as `total_duration`,
 ```
 
 LLM output is preliminary troubleshooting material and may be incomplete or
-incorrect. Confirm cited events against the displayed source log details and
-collect additional diagnostics before making operational or hardware decisions.
+incorrect. Use `--verbose` to confirm cited events against the source log
+details, and collect additional diagnostics before making operational or
+hardware decisions.
 If `endpoint` points to another host, the grouped log content is sent to that
 host.
 
