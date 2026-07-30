@@ -124,7 +124,7 @@ func LogsAnalyzeCommand(opts *commandOptions) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to get LLM analysis: %v", err)
 			}
-			reply := chatResult.Content
+			reply := chatResult.Analysis()
 
 			if _, err := fmt.Fprintf(
 				os.Stdout,

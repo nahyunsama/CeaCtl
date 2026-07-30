@@ -226,6 +226,7 @@ host.
 |   |-- mds/
 |   |   |-- commands/               # MDS query operations
 |   |   |-- llmanalysis/            # Ollama client and analysis prompts
+|   |   |-- llmtranslation/         # Translation-only LLM prompts
 |   |   |-- logcompressor/          # Log parsing, grouping, and evidence
 |   |   |-- receiver/               # NX-API JSON response parsing
 |   |   `-- transceiver/            # NX-API HTTPS client

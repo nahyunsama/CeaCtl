@@ -183,6 +183,85 @@ devices: {}
 	}
 }
 
+func TestLoadFile_TranslationOutput(t *testing.T) {
+	tests := []struct {
+		name           string
+		outputYAML     string
+		wantTranslate  bool
+		wantTargetLang string
+		wantError      string
+	}{
+		{
+			name: "enabled reads target language",
+			outputYAML: `
+    translate: true
+    target_lang: "  ko_KR  "`,
+			wantTranslate:  true,
+			wantTargetLang: "ko_KR",
+		},
+		{
+			name: "disabled allows an omitted target language",
+			outputYAML: `
+    translate: false`,
+		},
+		{
+			name: "enabled requires a target language",
+			outputYAML: `
+    translate: true`,
+			wantError: "target_lang is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			path := writeTempConfig(t, `
+devices:
+  switch1:
+    type: mds
+    host: 10.0.0.1
+    port: "443"
+    username: admin
+    password: secret
+llm_analysis:
+  output:`+test.outputYAML)
+
+			got, err := LoadFile(path)
+			if test.wantError != "" {
+				if err == nil {
+					t.Fatal("expected an error, got nil")
+				}
+				if !strings.Contains(err.Error(), test.wantError) {
+					t.Fatalf(
+						"error %q does not contain %q",
+						err,
+						test.wantError,
+					)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			output := got.LLMAnalysis.Output
+			if output.Translate != test.wantTranslate {
+				t.Errorf(
+					"got translate %v, want %v",
+					output.Translate,
+					test.wantTranslate,
+				)
+			}
+			if output.TargetLang != test.wantTargetLang {
+				t.Errorf(
+					"got target_lang %q, want %q",
+					output.TargetLang,
+					test.wantTargetLang,
+				)
+			}
+		})
+	}
+}
+
 func TestLoadDevice_AutoSelectsSingleMatch(t *testing.T) {
 	path := writeTempConfig(t, `
 devices:

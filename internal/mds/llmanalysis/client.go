@@ -69,6 +69,13 @@ type ChatResult struct {
 	RawResponse []byte
 }
 
+// Analysis returns only the assistant's analysis text. Transport metadata and
+// the raw Ollama response remain available for verbose diagnostics but are not
+// part of the analysis passed to downstream stages such as translation.
+func (r ChatResult) Analysis() string {
+	return r.Content
+}
+
 // WriteVerbose preserves all JSON values while making the response readable.
 func (r ChatResult) WriteVerbose(w io.Writer) error {
 	if len(r.RawResponse) == 0 {
