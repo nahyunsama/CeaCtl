@@ -223,9 +223,11 @@ host.
 |   `-- ucsm/                       # UCSM commands and flags
 |-- internal/
 |   |-- config/                     # YAML loading and device selection
+|   |-- llm/
+|   |   `-- ollama/                 # Shared Ollama Chat API client
 |   |-- mds/
 |   |   |-- commands/               # MDS query operations
-|   |   |-- llmanalysis/            # Ollama client and analysis prompts
+|   |   |-- llmanalysis/            # Analysis prompts and evidence helpers
 |   |   |-- llmtranslation/         # Translation-only LLM prompts
 |   |   |-- logcompressor/          # Log parsing, grouping, and evidence
 |   |   |-- receiver/               # NX-API JSON response parsing

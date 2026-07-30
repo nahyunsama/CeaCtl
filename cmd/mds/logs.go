@@ -8,6 +8,7 @@ import (
 	"time"
 
 	appconfig "github.com/nahyunsama/ceactl/internal/config"
+	"github.com/nahyunsama/ceactl/internal/llm/ollama"
 	"github.com/nahyunsama/ceactl/internal/mds/commands"
 	"github.com/nahyunsama/ceactl/internal/mds/config"
 	"github.com/nahyunsama/ceactl/internal/mds/llmanalysis"
@@ -111,7 +112,10 @@ func LogsAnalyzeCommand(opts *commandOptions) *cobra.Command {
 				close(stopped)
 			}()
 
-			client := llmanalysis.NewClient(cfgFile.LLMAnalysis.Ollama.Endpoint, cfgFile.LLMAnalysis.Ollama.Model)
+			client := ollama.NewClient(
+				cfgFile.LLMAnalysis.Ollama.Endpoint,
+				cfgFile.LLMAnalysis.Ollama.Model,
+			)
 			chatResult, err := client.ChatDetailed(cmd.Context(), llmanalysis.SystemPrompt, userPrompt)
 			close(done)
 			<-stopped
@@ -124,7 +128,7 @@ func LogsAnalyzeCommand(opts *commandOptions) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to get LLM analysis: %v", err)
 			}
-			reply := chatResult.Analysis()
+			reply := chatResult.AssistantContent()
 
 			if _, err := fmt.Fprintf(
 				os.Stdout,

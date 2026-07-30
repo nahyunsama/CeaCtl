@@ -1,4 +1,6 @@
-package llmanalysis
+// Package ollama provides the shared Ollama Chat API transport used by LLM
+// processing stages.
+package ollama
 
 import (
 	"bytes"
@@ -69,10 +71,9 @@ type ChatResult struct {
 	RawResponse []byte
 }
 
-// Analysis returns only the assistant's analysis text. Transport metadata and
-// the raw Ollama response remain available for verbose diagnostics but are not
-// part of the analysis passed to downstream stages such as translation.
-func (r ChatResult) Analysis() string {
+// AssistantContent returns only the assistant message. Transport metadata and
+// the raw Ollama response remain available for verbose diagnostics.
+func (r ChatResult) AssistantContent() string {
 	return r.Content
 }
 

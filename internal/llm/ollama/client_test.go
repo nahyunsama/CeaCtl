@@ -1,4 +1,4 @@
-package llmanalysis
+package ollama
 
 import (
 	"bytes"
@@ -180,14 +180,14 @@ func TestChatDetailed_PreservesErrorResponse(t *testing.T) {
 	}
 }
 
-func TestChatResultAnalysis_ReturnsOnlyAssistantContent(t *testing.T) {
+func TestChatResultAssistantContent_ReturnsOnlyAssistantContent(t *testing.T) {
 	result := ChatResult{
 		Content:     "analysis only",
 		StatusCode:  http.StatusOK,
 		RawResponse: []byte(`{"message":{"content":"analysis only"},"eval_count":42}`),
 	}
 
-	got := result.Analysis()
+	got := result.AssistantContent()
 	if got != "analysis only" {
 		t.Fatalf("got %q, want %q", got, "analysis only")
 	}
