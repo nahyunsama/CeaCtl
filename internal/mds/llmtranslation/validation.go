@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	eventIDPattern = regexp.MustCompile(`\bE[1-9][0-9]*\b`)
-	numberPattern  = regexp.MustCompile(`\b[0-9]+(?:\.[0-9]+)?\b`)
+	eventIDPattern    = regexp.MustCompile(`\bE[1-9][0-9]*\b`)
+	numberPattern     = regexp.MustCompile(`\b[0-9]+(?:\.[0-9]+)?\b`)
 	inlineCodePattern = regexp.MustCompile(
 		"`([^`\\r\\n]+)`",
 	)
