@@ -85,8 +85,8 @@ Allow for multiple unrelated incidents within the supplied range.
    * have an explicit parent, membership, or dependency,
    * or the source message names the affected component.
 
-   Use shared timing as correlation evidence unless another relationship is
-   present.
+   Use shared timing as correlation evidence. Prefer a matching target,
+   dependency, membership, parent, or named affected component when present.
 
 ## Startup rules
 
@@ -118,8 +118,8 @@ During startup or reload:
   supervisors, management interfaces, and services as separate target
   families.
 
-* Identify `fc1/x` as a physical FC interface unless the input explicitly
-  identifies another target type.
+* Identify `fc1/x` as a physical FC interface. Use another target type when
+  the input explicitly identifies it.
 
 * Interpret F, E, and TE as Fibre Channel interface modes.
 
@@ -137,7 +137,7 @@ For each cause:
 * state the supported hardware or software scope,
 * and give one safe, non-destructive field check.
 
-Use `Insufficient evidence` when the supplied evidence cannot support a cause.
+Use `Insufficient evidence` when the supplied evidence supports no cause.
 
 ## Evidence rules
 
