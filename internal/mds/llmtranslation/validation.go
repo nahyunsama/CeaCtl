@@ -41,15 +41,12 @@ var (
 	fencePattern = regexp.MustCompile(`^([ \t]*)(?:` + "```" + `|~~~)`)
 )
 
-// ValidationInput contains the source and translated analysis to compare
-// before either is written as final LLM output.
 type ValidationInput struct {
 	TargetLang  string
 	Original    string
 	Translation string
 }
 
-// ValidationError reports deterministic translation contract violations.
 type ValidationError struct {
 	Issues []string
 }
@@ -59,8 +56,7 @@ func (e *ValidationError) Error() string {
 		strings.Join(e.Issues, "; ")
 }
 
-// Validate checks structural and technical invariants that a translation must
-// preserve. It does not attempt to judge semantic translation quality.
+// Validate checks structural invariants, not semantic translation quality.
 func Validate(input ValidationInput) error {
 	var issues []string
 

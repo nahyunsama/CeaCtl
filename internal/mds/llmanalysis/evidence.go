@@ -12,8 +12,7 @@ var (
 	eventReference = regexp.MustCompile(`\bE([1-9]\d*)\b`)
 )
 
-// ReferencedEventIDs excludes ranges because they do not establish support
-// from each event; individual IDs retain first-seen order.
+// ReferencedEventIDs excludes ranges and preserves first-seen order.
 func ReferencedEventIDs(reply string, groupCount int) []int {
 	if groupCount <= 0 {
 		return nil

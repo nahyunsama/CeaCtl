@@ -1,5 +1,4 @@
-// Package llmtranslation contains prompts and helpers for translating an LLM
-// analysis without changing its technical meaning.
+// Package llmtranslation translates and validates LLM analysis output.
 package llmtranslation
 
 import (
@@ -8,15 +7,10 @@ import (
 	"strings"
 )
 
-// SystemPrompt defines the translation-only behavior used for a second LLM
-// request after log analysis.
-//
 //go:embed prompts/system_prompt.txt
 var SystemPrompt string
 
-// PromptInput is deliberately limited to the configured language and the
-// assistant's completed analysis. Raw logs, source evidence, and Ollama
-// response metadata belong to other stages and are not translation input.
+// PromptInput excludes raw logs, evidence, and transport metadata by design.
 type PromptInput struct {
 	TargetLang string
 	Analysis   string
@@ -37,8 +31,6 @@ target_lang: %s
 Return only the translated Markdown analysis.
 `
 
-// BuildUserPrompt creates an explicit translation instruction around the
-// configured target language and completed analysis.
 func BuildUserPrompt(input PromptInput) (string, error) {
 	targetLang := strings.TrimSpace(input.TargetLang)
 	if targetLang == "" {

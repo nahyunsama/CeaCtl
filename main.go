@@ -7,8 +7,7 @@ import (
 )
 
 func main() {
-	// Some supported Cisco firmware still uses SHA-1 TLS signatures; this
-	// process-wide compatibility switch weakens the default TLS policy.
+	// Required by legacy Cisco firmware; weakens TLS policy process-wide.
 	os.Setenv("GODEBUG", "tlssha1=1")
 	cmd.Execute()
 }

@@ -17,8 +17,7 @@ var (
 	reKernelElapsed     = regexp.MustCompile(`^\[\s*\d+(?:\.\d+)?\]\s*`)
 )
 
-// Event is the compact semantic unit printed to the console and sent to the
-// LLM. SourceGroupIDs retain the mechanically grouped evidence behind it.
+// Event links compact LLM input to its source groups through SourceGroupIDs.
 type Event struct {
 	Targets        []string
 	Type           string
@@ -34,8 +33,7 @@ type Event struct {
 	firstOrder     int
 }
 
-// TargetSequence keeps only actual state changes for one target. Repeated
-// identical states are represented as a run count, for example downx3>upx2.
+// TargetSequence encodes repeated states as runs such as downx3>upx2.
 type TargetSequence struct {
 	Target     string
 	Transition string
@@ -88,8 +86,7 @@ type sequenceAccumulator struct {
 
 const semanticAggregationGap = 15 * time.Minute
 
-// StructuredEvents returns the semantic events produced by Analyze. The
-// fallback keeps manually constructed Results useful in tests and callers.
+// StructuredEvents falls back to Groups for manually constructed Results.
 func (r *Result) StructuredEvents() []Event {
 	if len(r.Events) > 0 || len(r.Groups) == 0 {
 		return r.Events
