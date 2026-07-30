@@ -9,14 +9,14 @@ func TestSystemPromptDefinesTranslationOnlyContract(t *testing.T) {
 	t.Parallel()
 
 	expected := []string{
-		"single task is to translate the supplied LLM analysis",
-		"locale configured for translated output",
-		"Preserve the original meaning, confidence, scope, and level of certainty",
-		"Preserve the Markdown structure",
-		"Event IDs such as E1 and E2",
-		"configuration keys",
-		"adds no diagnosis",
-		"Return only the translated analysis",
+		"only task is to translate the supplied source analysis",
+		"locale code such as ko_KR",
+		"Translate all human-readable prose into the target language",
+		"response that leaves all human-readable prose in the source language is",
+		"Repeating an existing protected term",
+		"Natural line wrapping and paragraph spacing may change",
+		"source_analysis: the completed LLM analysis to translate",
+		"Return only the translated Markdown analysis",
 	}
 
 	for _, value := range expected {

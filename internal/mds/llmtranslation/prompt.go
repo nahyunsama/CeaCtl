@@ -3,9 +3,7 @@
 package llmtranslation
 
 import (
-	"bytes"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -24,30 +22,40 @@ type PromptInput struct {
 	Analysis   string
 }
 
-type promptPayload struct {
-	TargetLang string `json:"target_lang"`
-	Analysis   string `json:"analysis"`
-}
+const userPromptTemplate = `Translate the source analysis into the language specified by target_lang.
 
-// BuildUserPrompt creates the data-only translation request.
+Interpret target_lang as either a locale code, language code, or language name.
+All human-readable prose must be written in that target language.
+Keep protected technical values unchanged.
+
+target_lang: %s
+
+<source_analysis>
+%s
+</source_analysis>
+
+Return only the translated Markdown analysis.
+`
+
+// BuildUserPrompt creates an explicit translation instruction around the
+// configured target language and completed analysis.
 func BuildUserPrompt(input PromptInput) (string, error) {
 	targetLang := strings.TrimSpace(input.TargetLang)
 	if targetLang == "" {
 		return "", fmt.Errorf("BuildUserPrompt: target language is empty")
 	}
+	if strings.ContainsAny(targetLang, "\r\n") {
+		return "", fmt.Errorf(
+			"BuildUserPrompt: target language contains a line break",
+		)
+	}
 	if strings.TrimSpace(input.Analysis) == "" {
 		return "", fmt.Errorf("BuildUserPrompt: analysis is empty")
 	}
 
-	var buf bytes.Buffer
-	encoder := json.NewEncoder(&buf)
-	encoder.SetEscapeHTML(false)
-	if err := encoder.Encode(promptPayload{
-		TargetLang: targetLang,
-		Analysis:   input.Analysis,
-	}); err != nil {
-		return "", fmt.Errorf("BuildUserPrompt: encode payload: %w", err)
-	}
-
-	return buf.String(), nil
+	return fmt.Sprintf(
+		userPromptTemplate,
+		targetLang,
+		input.Analysis,
+	), nil
 }

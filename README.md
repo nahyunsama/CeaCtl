@@ -126,6 +126,13 @@ and configured `target_lang` in a second Ollama request. Output is ordered as
 the English analysis, cited Event ID summaries or verbose source evidence, and
 then the translation.
 
+Before writing those final LLM sections, CeaCtl verifies that the translation
+preserves the sets of Event IDs and protected technical tokens, retains source
+numeric literals and Markdown heading/list structure, and uses the expected
+script for supported locales. Repetition and paragraph wrapping may differ
+between languages. A failed check suppresses the final LLM output and returns
+an English `LLM translation validation failed` error.
+
 ### 1. Install and start Ollama
 
 Install Ollama by following the official instructions for

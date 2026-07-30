@@ -159,10 +159,14 @@ func LogsAnalyzeCommand(opts *commandOptions) *cobra.Command {
 				}
 
 				translation = translationResult.AssistantContent()
-				if strings.TrimSpace(translation) == "" {
-					return fmt.Errorf(
-						"failed to get LLM translation: empty response",
-					)
+				if err := llmtranslation.Validate(
+					llmtranslation.ValidationInput{
+						TargetLang:  outputConfig.TargetLang,
+						Original:    reply,
+						Translation: translation,
+					},
+				); err != nil {
+					return err
 				}
 			}
 
