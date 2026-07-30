@@ -1,6 +1,7 @@
 package mds
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/nahyunsama/ceactl/internal/mds/commands"
 	"github.com/nahyunsama/ceactl/internal/mds/config"
 	"github.com/nahyunsama/ceactl/internal/mds/llmanalysis"
+	"github.com/nahyunsama/ceactl/internal/mds/llmtranslation"
 	"github.com/nahyunsama/ceactl/internal/mds/logcompressor"
 	"github.com/spf13/cobra"
 )
@@ -104,50 +106,74 @@ func LogsAnalyzeCommand(opts *commandOptions) *cobra.Command {
 				return fmt.Errorf("failed to build LLM analysis prompt: %v", err)
 			}
 
-			fmt.Fprintf(os.Stderr, "Requesting LLM analysis from %s (model: %s)...\n", cfgFile.LLMAnalysis.Ollama.Endpoint, cfgFile.LLMAnalysis.Ollama.Model)
-			done := make(chan struct{})
-			stopped := make(chan struct{})
-			go func() {
-				reportElapsed(os.Stderr, done)
-				close(stopped)
-			}()
-
 			client := ollama.NewClient(
 				cfgFile.LLMAnalysis.Ollama.Endpoint,
 				cfgFile.LLMAnalysis.Ollama.Model,
 			)
-			chatResult, err := client.ChatDetailed(cmd.Context(), llmanalysis.SystemPrompt, userPrompt)
-			close(done)
-			<-stopped
-			fmt.Fprintln(os.Stderr)
-			if opts.verbose {
-				if verboseErr := chatResult.WriteVerbose(os.Stderr); verboseErr != nil {
-					return fmt.Errorf("failed to write verbose Ollama response: %v", verboseErr)
-				}
-			}
+			chatResult, err := requestOllama(
+				cmd.Context(),
+				os.Stderr,
+				client,
+				"analysis",
+				llmanalysis.SystemPrompt,
+				userPrompt,
+				opts.verbose,
+			)
 			if err != nil {
 				return fmt.Errorf("failed to get LLM analysis: %v", err)
 			}
 			reply := chatResult.AssistantContent()
-
-			if _, err := fmt.Fprintf(
-				os.Stdout,
-				"\n=== LLM Analysis (%s) ===\n\n%s\n",
-				cfgFile.LLMAnalysis.Ollama.Model,
-				reply,
-			); err != nil {
-				return err
-			}
 
 			eventIDs := llmanalysis.ReferencedEventIDs(
 				reply,
 				result.EventCount(),
 			)
 
-			if err := writeReferencedEventOutput(
+			var translation string
+			outputConfig := cfgFile.LLMAnalysis.Output
+			if outputConfig.Translate {
+				translationPrompt, err := llmtranslation.BuildUserPrompt(
+					llmtranslation.PromptInput{
+						TargetLang: outputConfig.TargetLang,
+						Analysis:   reply,
+					},
+				)
+				if err != nil {
+					return fmt.Errorf(
+						"failed to build LLM translation prompt: %v",
+						err,
+					)
+				}
+
+				translationResult, err := requestOllama(
+					cmd.Context(),
+					os.Stderr,
+					client,
+					"translation to "+outputConfig.TargetLang,
+					llmtranslation.SystemPrompt,
+					translationPrompt,
+					opts.verbose,
+				)
+				if err != nil {
+					return fmt.Errorf("failed to get LLM translation: %v", err)
+				}
+
+				translation = translationResult.AssistantContent()
+				if strings.TrimSpace(translation) == "" {
+					return fmt.Errorf(
+						"failed to get LLM translation: empty response",
+					)
+				}
+			}
+
+			if err := writeLLMOutput(
 				os.Stdout,
 				result,
 				eventIDs,
+				cfgFile.LLMAnalysis.Ollama.Model,
+				reply,
+				outputConfig.TargetLang,
+				translation,
 				opts.verbose,
 			); err != nil {
 				return err
@@ -183,6 +209,94 @@ func writeReferencedEventOutput(
 		return result.WriteEvidenceDetails(w, eventIDs)
 	}
 	return result.WriteCitedEventSummary(w, eventIDs)
+}
+
+func writeLLMOutput(
+	w io.Writer,
+	result *logcompressor.Result,
+	eventIDs []int,
+	model string,
+	analysis string,
+	targetLang string,
+	translation string,
+	verbose bool,
+) error {
+	if _, err := fmt.Fprintf(
+		w,
+		"\n=== LLM Analysis (%s) ===\n\n%s\n",
+		model,
+		analysis,
+	); err != nil {
+		return err
+	}
+
+	if err := writeReferencedEventOutput(
+		w,
+		result,
+		eventIDs,
+		verbose,
+	); err != nil {
+		return err
+	}
+
+	if translation == "" {
+		return nil
+	}
+
+	_, err := fmt.Fprintf(
+		w,
+		"\n=== Translation (%s) ===\n\n%s\n",
+		targetLang,
+		translation,
+	)
+	return err
+}
+
+func requestOllama(
+	ctx context.Context,
+	statusWriter io.Writer,
+	client *ollama.Client,
+	task string,
+	systemPrompt string,
+	userPrompt string,
+	verbose bool,
+) (ollama.ChatResult, error) {
+	fmt.Fprintf(
+		statusWriter,
+		"Requesting LLM %s from %s (model: %s)...\n",
+		task,
+		client.Endpoint,
+		client.Model,
+	)
+
+	done := make(chan struct{})
+	stopped := make(chan struct{})
+	go func() {
+		reportElapsed(statusWriter, done)
+		close(stopped)
+	}()
+
+	result, requestErr := client.ChatDetailed(
+		ctx,
+		systemPrompt,
+		userPrompt,
+	)
+	close(done)
+	<-stopped
+	fmt.Fprintln(statusWriter)
+
+	if verbose {
+		fmt.Fprintf(statusWriter, "[verbose] Ollama %s response:\n", task)
+		if err := result.WriteVerbose(statusWriter); err != nil {
+			return result, fmt.Errorf(
+				"failed to write verbose Ollama %s response: %w",
+				task,
+				err,
+			)
+		}
+	}
+
+	return result, requestErr
 }
 
 func reportElapsed(w io.Writer, done <-chan struct{}) {
