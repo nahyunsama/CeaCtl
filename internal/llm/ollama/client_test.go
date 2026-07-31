@@ -1,4 +1,4 @@
-package llmanalysis
+package ollama
 
 import (
 	"bytes"
@@ -177,5 +177,21 @@ func TestChatDetailed_PreservesErrorResponse(t *testing.T) {
 	}
 	if string(result.RawResponse) != response {
 		t.Errorf("got raw response %q, want %q", result.RawResponse, response)
+	}
+}
+
+func TestChatResultAssistantContent_ReturnsOnlyAssistantContent(t *testing.T) {
+	result := ChatResult{
+		Content:     "analysis only",
+		StatusCode:  http.StatusOK,
+		RawResponse: []byte(`{"message":{"content":"analysis only"},"eval_count":42}`),
+	}
+
+	got := result.AssistantContent()
+	if got != "analysis only" {
+		t.Fatalf("got %q, want %q", got, "analysis only")
+	}
+	if strings.Contains(got, "eval_count") {
+		t.Fatalf("analysis contains Ollama response metadata: %q", got)
 	}
 }

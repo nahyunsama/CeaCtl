@@ -1,4 +1,5 @@
-package llmanalysis
+// Package ollama provides a shared Ollama Chat API transport.
+package ollama
 
 import (
 	"bytes"
@@ -62,14 +63,18 @@ func (c *Client) Chat(ctx context.Context, systemPrompt, userPrompt string) (str
 	return result.Content, err
 }
 
-// ChatResult retains Ollama's complete response for benchmark inspection.
+// ChatResult retains the raw response for diagnostics, including errors.
 type ChatResult struct {
 	Content     string
 	StatusCode  int
 	RawResponse []byte
 }
 
-// WriteVerbose preserves all JSON values while making the response readable.
+// AssistantContent excludes transport metadata from downstream LLM stages.
+func (r ChatResult) AssistantContent() string {
+	return r.Content
+}
+
 func (r ChatResult) WriteVerbose(w io.Writer) error {
 	if len(r.RawResponse) == 0 {
 		return nil
@@ -90,7 +95,7 @@ func (r ChatResult) WriteVerbose(w io.Writer) error {
 	return err
 }
 
-// ChatDetailed retains the response body even for non-200 responses.
+// ChatDetailed retains response bodies from non-200 responses.
 func (c *Client) ChatDetailed(ctx context.Context, systemPrompt, userPrompt string) (ChatResult, error) {
 	var result ChatResult
 

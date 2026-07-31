@@ -71,8 +71,7 @@ func (r *Result) WriteReport(w io.Writer, maxUnparsed int) error {
 	return nil
 }
 
-// WriteGroupTable remains as a compatibility alias for callers of the old
-// report method. It now emits the structured compact representation.
+// WriteGroupTable preserves the former report API.
 func (r *Result) WriteGroupTable(w io.Writer) error {
 	return r.WriteCompact(w)
 }
@@ -125,8 +124,7 @@ func (r *Result) WriteCompact(w io.Writer) error {
 	return nil
 }
 
-// WriteCitedEventSummary prints only compact events individually cited by the
-// LLM. An empty or invalid ID set intentionally produces no output.
+// WriteCitedEventSummary writes nothing for an empty or invalid ID set.
 func (r *Result) WriteCitedEventSummary(
 	w io.Writer,
 	eventIDs []int,

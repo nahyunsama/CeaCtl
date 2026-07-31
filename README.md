@@ -82,9 +82,10 @@ production environments. The configuration contains plaintext credentials;
 `.config.yaml` is ignored by Git, but it should still be protected with
 appropriate file permissions.
 
-The `llm_analysis.output` fields are reserved for future output controls. The
-current implementation loads them but does not yet use them to translate or
-change the response language.
+Set `llm_analysis.output.translate: true` to send the completed English
+analysis through a second Ollama request. `target_lang` selects the translation
+locale and is required when translation is enabled. Set `translate: false` to
+skip the second request.
 
 ## Commands
 
@@ -119,6 +120,18 @@ sending pipe-delimited events to Ollama. The default output contains the
 model's analysis followed by one-line summaries for individually cited Event
 IDs such as `E1` and `E2`. Use `--verbose` to also display the complete
 compressed input and the exact source messages behind cited events.
+
+When translation is enabled, the CLI sends only the completed analysis text
+and configured `target_lang` in a second Ollama request. Output is ordered as
+the English analysis, cited Event ID summaries or verbose source evidence, and
+then the translation.
+
+Before writing those final LLM sections, CeaCtl verifies that the translation
+preserves the sets of Event IDs and protected technical tokens, retains source
+numeric literals and Markdown heading/list structure, and uses the expected
+script for supported locales. Repetition and paragraph wrapping may differ
+between languages. A failed check suppresses the final LLM output and returns
+an English `LLM translation validation failed` error.
 
 ### 1. Install and start Ollama
 
@@ -223,9 +236,12 @@ host.
 |   `-- ucsm/                       # UCSM commands and flags
 |-- internal/
 |   |-- config/                     # YAML loading and device selection
+|   |-- llm/
+|   |   `-- ollama/                 # Shared Ollama Chat API client
 |   |-- mds/
 |   |   |-- commands/               # MDS query operations
-|   |   |-- llmanalysis/            # Ollama client and analysis prompts
+|   |   |-- llmanalysis/            # Analysis prompts and evidence helpers
+|   |   |-- llmtranslation/         # Translation-only LLM prompts
 |   |   |-- logcompressor/          # Log parsing, grouping, and evidence
 |   |   |-- receiver/               # NX-API JSON response parsing
 |   |   `-- transceiver/            # NX-API HTTPS client

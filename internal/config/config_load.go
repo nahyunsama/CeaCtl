@@ -90,6 +90,18 @@ func LoadFile(path string) (File, error) {
 		return File{}, fmt.Errorf("config %s: must define at least one device", path)
 	}
 
+	cfg.LLMAnalysis.Output.TargetLang = strings.TrimSpace(
+		cfg.LLMAnalysis.Output.TargetLang,
+	)
+	if cfg.LLMAnalysis.Output.Translate &&
+		cfg.LLMAnalysis.Output.TargetLang == "" {
+		return File{}, fmt.Errorf(
+			"config %s: llm_analysis.output.target_lang is required "+
+				"when llm_analysis.output.translate is true",
+			path,
+		)
+	}
+
 	return cfg, nil
 }
 

@@ -8,12 +8,13 @@ import (
 
 func TestSystemPrompt_UsesPositiveGuidanceForCriticalRules(t *testing.T) {
 	expected := []string{
-		"Use up to eight unique Event IDs",
-		"reason=unspecified or reason=admin_down",
-		"Apply reason=license_unavailable to the targets listed",
-		"distinct target families",
-		"Place type=unknown startup events in Separate observations first",
-		"Connect a possible cause to an effect when they share a target",
+		"Use no more than eight unique Event IDs",
+		"reason=none, unspecified, or admin_down",
+		"Apply reasons such as members_down, license_unavailable",
+		"Treat physical Ethernet interfaces, FC interfaces, port-channels",
+		"independent fault evidence, including during startup",
+		"Connect a possible cause to an effect when they:",
+		"share the same target",
 	}
 
 	for _, value := range expected {

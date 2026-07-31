@@ -18,8 +18,7 @@ func ParseInventoryResponse(data []byte) (InventoryBody, error) {
 	return resp.InsAPI.Outputs.Output.Body, nil
 }
 
-// ParseLoggingResponse reads clierror because NX-API returns raw logfile text
-// in that field instead of body.
+// ParseLoggingResponse uses clierror, where NX-API places raw logfile text.
 func ParseLoggingResponse(data []byte) (string, error) {
 	var resp LoggingResponse
 	if err := json.Unmarshal(data, &resp); err != nil {

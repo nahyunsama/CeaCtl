@@ -190,3 +190,70 @@ func TestWriteReferencedEventOutput_SelectsDetailByMode(t *testing.T) {
 		}
 	})
 }
+
+func TestWriteLLMOutput_AppendsTranslationAfterCitedEvents(t *testing.T) {
+	observed := time.Date(2026, time.June, 1, 12, 0, 0, 0, time.UTC)
+	result := &logcompressor.Result{
+		Events: []logcompressor.Event{{
+			Targets: []string{"fc1/1"},
+			Type:    "state", Role: "effect", Transition: "down",
+			Reason: "link_failure", Final: "down", Count: 1,
+			First: observed, Last: observed,
+		}},
+	}
+
+	var output bytes.Buffer
+	if err := writeLLMOutput(
+		&output,
+		result,
+		[]int{1},
+		"gemma4:e2b",
+		"English analysis citing E1.",
+		"ko_KR",
+		"E1을 인용한 한국어 분석입니다.",
+		false,
+	); err != nil {
+		t.Fatalf("writeLLMOutput returned an error: %v", err)
+	}
+
+	got := output.String()
+	analysisIndex := strings.Index(got, "English analysis citing E1.")
+	eventIndex := strings.Index(got, "=== Cited Event Summary ===")
+	translationIndex := strings.Index(got, "=== Translation (ko_KR) ===")
+	if analysisIndex < 0 || eventIndex < 0 || translationIndex < 0 {
+		t.Fatalf("output is missing a required section:\n%s", got)
+	}
+	if !(analysisIndex < eventIndex && eventIndex < translationIndex) {
+		t.Fatalf(
+			"output order is not analysis, cited events, translation:\n%s",
+			got,
+		)
+	}
+	if !strings.Contains(got, "E1을 인용한 한국어 분석입니다.") {
+		t.Errorf("output is missing translated analysis:\n%s", got)
+	}
+}
+
+func TestWriteLLMOutput_OmitsTranslationWhenDisabled(t *testing.T) {
+	var output bytes.Buffer
+	if err := writeLLMOutput(
+		&output,
+		&logcompressor.Result{},
+		nil,
+		"gemma4:e2b",
+		"English analysis.",
+		"",
+		"",
+		false,
+	); err != nil {
+		t.Fatalf("writeLLMOutput returned an error: %v", err)
+	}
+
+	got := output.String()
+	if !strings.Contains(got, "English analysis.") {
+		t.Errorf("output is missing original analysis:\n%s", got)
+	}
+	if strings.Contains(got, "=== Translation") {
+		t.Errorf("output contains a translation section:\n%s", got)
+	}
+}
