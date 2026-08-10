@@ -2,11 +2,14 @@ package mds
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/nahyunsama/ceactl/internal/mds/logcompressor"
+	"github.com/spf13/cobra"
 )
 
 func TestParseDayStart(t *testing.T) {
@@ -37,6 +40,96 @@ func TestParseDayStart(t *testing.T) {
 			t.Fatal("expected an error for malformed date, got nil")
 		}
 	})
+}
+
+func TestWriteCompressedLogReport(t *testing.T) {
+	input := strings.NewReader(strings.Join([]string{
+		"2026 Aug 10 12:00:00 switch %PORT-5-IF_DOWN_LINK_FAILURE: Interface fc1/1 is down",
+		"2026 Aug 10 12:00:01 switch %PORT-5-IF_DOWN_LINK_FAILURE: Interface fc1/1 is down",
+		"line without a timestamp",
+	}, "\n"))
+
+	var output bytes.Buffer
+	if err := writeCompressedLogReport(
+		&output,
+		input,
+		time.Time{},
+		time.Time{},
+	); err != nil {
+		t.Fatalf("writeCompressedLogReport returned an error: %v", err)
+	}
+
+	got := output.String()
+	for _, want := range []string{
+		"=== Structured log compression:",
+		"event_schema|id|time|count|target|type|role|transition|reason|final|detail",
+		"fc1/1",
+		"=== Unparsed lines (1) ===",
+		"line without a timestamp",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("compressed output is missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestLogsCommand_FileSkipsDeviceConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	logPath := filepath.Join(tempDir, "mds.log")
+	input := strings.Join([]string{
+		"2026 Aug 10 12:00:00 switch %PORT-5-IF_DOWN_LINK_FAILURE: Interface fc1/1 is down",
+		"2026 Aug 11 12:00:01 switch %PORT-5-IF_DOWN_LINK_FAILURE: Interface fc1/2 is down",
+	}, "\n")
+	if err := os.WriteFile(logPath, []byte(input), 0o600); err != nil {
+		t.Fatalf("failed to write test log: %v", err)
+	}
+
+	var output bytes.Buffer
+	cmd := LogsCommand(&commandOptions{
+		configPath: filepath.Join(tempDir, "missing-config.yaml"),
+	})
+	cmd.SetOut(&output)
+	cmd.SetErr(&output)
+	cmd.SetArgs([]string{
+		"--file", logPath,
+		"--from", "20260810",
+		"--to", "20260810",
+	})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("logs --file returned an error: %v", err)
+	}
+	got := output.String()
+	if !strings.Contains(got, "=== Structured log compression:") ||
+		!strings.Contains(got, "fc1/1") {
+		t.Errorf("compressed file output is incomplete:\n%s", got)
+	}
+	if strings.Contains(got, "fc1/2") {
+		t.Errorf("compressed file output contains an event outside the date range:\n%s", got)
+	}
+}
+
+func TestLogsCommandsExposeSameInputFlags(t *testing.T) {
+	cmd := LogsCommand(&commandOptions{})
+	var analyze *cobra.Command
+	for _, child := range cmd.Commands() {
+		if child.Name() == "analyze" {
+			analyze = child
+			break
+		}
+	}
+	if analyze == nil {
+		t.Fatal("logs analyze subcommand was not registered")
+	}
+
+	for _, name := range []string{"file", "from", "to"} {
+		if cmd.Flags().Lookup(name) == nil {
+			t.Errorf("logs command is missing --%s", name)
+		}
+		if analyze.Flags().Lookup(name) == nil {
+			t.Errorf("logs analyze command is missing --%s", name)
+		}
+	}
 }
 
 func TestParseDayEnd(t *testing.T) {

@@ -93,6 +93,7 @@ skip the second request.
 | --- | --- |
 | `ceactl mds version` | Show the MDS hostname, firmware version, and uptime. |
 | `ceactl mds inventory` | Show MDS component names, product IDs, and serial numbers. |
+| `ceactl mds logs` | Fetch and print locally compressed MDS logs without LLM analysis. |
 | `ceactl mds logs analyze` | Fetch, group, and optionally analyze MDS logs. |
 | `ceactl ucsm servers` | Show UCSM server DN, model, serial number, and operational state. |
 
@@ -112,6 +113,21 @@ Examples:
 ./ceactl ucsm servers --device ucsm-lab
 ./ceactl mds version --config ./configs/lab.yaml --verbose
 ```
+
+Print a locally compressed `show logging logfile` report without contacting an
+LLM backend:
+
+```bash
+./ceactl mds logs --device mds-lab
+./ceactl mds logs --file ./samples/mds.log
+./ceactl mds logs --file ./samples/mds.log --from 20260701 --to 20260715
+```
+
+The report includes compressed event and sequence rows. Unparsed source lines
+are limited to the first 10 entries so the command does not print the complete
+raw logfile. `--file` reads the local file directly and does not load a device
+configuration or contact an MDS switch. `--from` and `--to` apply the same
+inclusive `YYYYMMDD` date filtering used by `mds logs analyze`.
 
 ## MDS Log Analysis with Ollama
 
