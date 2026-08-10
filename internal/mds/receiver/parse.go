@@ -1,6 +1,9 @@
 package receiver
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 func ParseVersionResponse(data []byte) (VersionBody, error) {
 	var resp VersionResponse
@@ -18,11 +21,21 @@ func ParseInventoryResponse(data []byte) (InventoryBody, error) {
 	return resp.InsAPI.Outputs.Output.Body, nil
 }
 
-// ParseLoggingResponse uses clierror, where NX-API places raw logfile text.
-func ParseLoggingResponse(data []byte) (string, error) {
-	var resp LoggingResponse
+func ParseCLIASCIIResponse(data []byte) (string, error) {
+	var resp CLIASCIIResponse
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return "", err
 	}
-	return resp.InsAPI.Outputs.Output.ClientError, nil
+
+	output := resp.InsAPI.Outputs.Output
+	if output.Code != "200" {
+		return "", fmt.Errorf(
+			"NX-API command failed: code=%s msg=%s clierror=%s",
+			output.Code,
+			output.Message,
+			output.ClientError,
+		)
+	}
+
+	return output.Body, nil
 }

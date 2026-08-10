@@ -41,10 +41,14 @@ type InventoryBody struct {
 	} `json:"TABLE_inv"`
 }
 
-type LoggingResponse struct {
+type CLIASCIIResponse struct {
 	InsAPI struct {
 		Outputs struct {
 			Output struct {
+				Body        string `json:"body"`
+				Code        string `json:"code"`
+				Message     string `json:"msg"`
+				Input       string `json:"input"`
 				ClientError string `json:"clierror"`
 			} `json:"output"`
 		} `json:"outputs"`

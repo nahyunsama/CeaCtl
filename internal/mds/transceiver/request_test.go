@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -77,6 +78,55 @@ func TestSendRequest_NonOKStatus(t *testing.T) {
 	}
 }
 
+func TestFormatNXAPIResponseSummary(t *testing.T) {
+	body := []byte(`{
+		"ins_api": {
+			"type": "cli_show_ascii",
+			"outputs": {
+				"output": {
+					"code": "501",
+					"msg": "Structured output unsupported",
+					"body": "content that must not be printed",
+					"clierror": "error content that must not be printed"
+				}
+			}
+		}
+	}`)
+
+	got := formatNXAPIResponseSummary(http.StatusOK, body)
+	want := fmt.Sprintf(
+		`[verbose] received response: HTTP 200, type=cli_show_ascii, code=501, msg="Structured output unsupported", bytes=%d`,
+		len(body),
+	)
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	for _, sensitive := range []string{"content that must not be printed", "error content that must not be printed"} {
+		if strings.Contains(got, sensitive) {
+			t.Errorf("summary %q includes response content %q", got, sensitive)
+		}
+	}
+}
+
+func TestFormatNXAPIResponseSummary_NumericCode(t *testing.T) {
+	body := []byte(`{"ins_api":{"type":"cli_show","outputs":{"output":{"code":200,"msg":"Success"}}}}`)
+
+	got := formatNXAPIResponseSummary(http.StatusOK, body)
+	if !strings.Contains(got, `code=200, msg="Success"`) {
+		t.Errorf("summary %q does not include the numeric code and message", got)
+	}
+}
+
+func TestFormatNXAPIResponseSummary_NonJSON(t *testing.T) {
+	body := []byte(`service unavailable`)
+
+	got := formatNXAPIResponseSummary(http.StatusServiceUnavailable, body)
+	want := fmt.Sprintf(`[verbose] received response: HTTP 503, bytes=%d`, len(body))
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func TestCLIShow_SendsExpectedPayload(t *testing.T) {
 	var got nxapiRequest
 
@@ -109,6 +159,44 @@ func TestCLIShow_SendsExpectedPayload(t *testing.T) {
 	}
 	if got.InsAPI.Input != "show version" {
 		t.Errorf("got input %q, want %q", got.InsAPI.Input, "show version")
+	}
+	if got.InsAPI.OutputFormat != "json" {
+		t.Errorf("got output_format %q, want json", got.InsAPI.OutputFormat)
+	}
+}
+
+func TestCLIShowASCII_SendsExpectedPayload(t *testing.T) {
+	var got nxapiRequest
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Fatalf("failed to decode request body: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"ins_api":{"outputs":{"output":{"body":"log content"}}}}`))
+	}))
+	defer server.Close()
+
+	client := &Client{BaseURL: server.URL, HTTP: server.Client()}
+
+	if _, err := client.CLIShowASCII(context.Background(), "show logging logfile"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got.InsAPI.Version != "1.0" {
+		t.Errorf("got version %q, want 1.0", got.InsAPI.Version)
+	}
+	if got.InsAPI.Type != "cli_show_ascii" {
+		t.Errorf("got type %q, want cli_show_ascii", got.InsAPI.Type)
+	}
+	if got.InsAPI.Chunk != "0" {
+		t.Errorf("got chunk %q, want 0", got.InsAPI.Chunk)
+	}
+	if got.InsAPI.Sid != "1" {
+		t.Errorf("got sid %q, want 1", got.InsAPI.Sid)
+	}
+	if got.InsAPI.Input != "show logging logfile" {
+		t.Errorf("got input %q, want %q", got.InsAPI.Input, "show logging logfile")
 	}
 	if got.InsAPI.OutputFormat != "json" {
 		t.Errorf("got output_format %q, want json", got.InsAPI.OutputFormat)

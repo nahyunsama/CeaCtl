@@ -11,9 +11,9 @@ import (
 func GetLoggingLogfile(ctx context.Context, cfg config.Config) (string, error) {
 	client := transceiver.NewClientFromConfig(cfg)
 
-	data, err := client.CLIShow(ctx, "show logging logfile")
+	data, err := client.CLIShowASCII(ctx, "show logging logfile")
 	if err != nil {
 		return "", err
 	}
-	return receiver.ParseLoggingResponse(data)
+	return receiver.ParseCLIASCIIResponse(data)
 }

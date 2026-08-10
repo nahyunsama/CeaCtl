@@ -1,6 +1,9 @@
 package receiver
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseVersionResponse(t *testing.T) {
 	input := []byte(`{
@@ -93,14 +96,17 @@ func TestParseInventoryResponse_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestParseLoggingResponse(t *testing.T) {
+func TestParseCLIASCIIResponse(t *testing.T) {
 	input := []byte(`{
 		"ins_api": { "outputs": { "output": {
-			"clierror": "some log file content"
+			"body": "some log file content",
+			"code": "200",
+			"msg": "Success",
+			"input": "show logging logfile"
 		}}}
 	}`)
 
-	got, err := ParseLoggingResponse(input)
+	got, err := ParseCLIASCIIResponse(input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -109,8 +115,66 @@ func TestParseLoggingResponse(t *testing.T) {
 	}
 }
 
-func TestParseLoggingResponse_InvalidJSON(t *testing.T) {
-	_, err := ParseLoggingResponse([]byte(`not json`))
+func TestParseCLIASCIIResponse_EmptyBody(t *testing.T) {
+	input := []byte(`{
+		"ins_api": { "outputs": { "output": {
+			"body": "",
+			"code": "200",
+			"msg": "Success"
+		}}}
+	}`)
+
+	got, err := ParseCLIASCIIResponse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "" {
+		t.Errorf("got %q, want an empty body", got)
+	}
+}
+
+func TestParseCLIASCIIResponse_CommandError(t *testing.T) {
+	input := []byte(`{
+		"ins_api": { "outputs": { "output": {
+			"code": "400",
+			"msg": "CLI execution error",
+			"clierror": "Error: This command does not support XML output."
+		}}}
+	}`)
+
+	_, err := ParseCLIASCIIResponse(input)
+	if err == nil {
+		t.Fatal("expected an error for a failed NX-API command, got nil")
+	}
+	for _, want := range []string{"400", "CLI execution error", "does not support XML output"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not contain %q", err, want)
+		}
+	}
+}
+
+func TestParseCLIASCIIResponse_StructuredOutputUnsupported(t *testing.T) {
+	input := []byte(`{
+		"ins_api": { "outputs": { "output": {
+			"code": "501",
+			"msg": "Structured output unsupported",
+			"clierror": "legacy log content"
+		}}}
+	}`)
+
+	_, err := ParseCLIASCIIResponse(input)
+	if err == nil {
+		t.Fatal("expected an error for a failed NX-API command, got nil")
+	}
+	for _, want := range []string{"501", "Structured output unsupported", "legacy log content"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not contain %q", err, want)
+		}
+	}
+}
+
+func TestParseCLIASCIIResponse_InvalidJSON(t *testing.T) {
+	_, err := ParseCLIASCIIResponse([]byte(`not json`))
 	if err == nil {
 		t.Fatal("expected an error for malformed JSON, got nil")
 	}
